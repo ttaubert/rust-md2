@@ -22,62 +22,83 @@ static S: [u8, ..256] = [
 ];
 
 #[inline]
-fn md2_pad(msg: &mut Vec<u8>) {
+fn md2_memcpy(dst: &mut [u8], src: &[u8]) {
+    assert!(dst.len() == src.len());
+
+    // Slow but safe memcpy() implementation.
+    for (i, byte) in dst.iter_mut().enumerate() { *byte = src[i] }
+}
+
+#[inline]
+fn md2_pad(msg: &[u8]) -> Vec<u8> {
+    let mut msg = msg.to_vec();
     let pad = 16 - msg.len() % 16;
     msg.grow_fn(pad, |_| pad as u8);
-    assert!(msg.len() % 16 == 0);
+    msg
 }
 
 #[inline]
-fn md2_checksum(msg: &mut Vec<u8>) {
+fn md2_checksum(msg: &[u8]) -> [u8, ..16] {
     let mut checksum = [0u8, ..16];
-    let mut l = 0u8;
+    let mut last = 0u8;
 
-    for chunk in msg.as_slice().chunks(16) {
+    for chunk in msg.chunks(16) {
         for (i, byte) in checksum.iter_mut().enumerate() {
-            *byte ^= S[(chunk[i] ^ l) as uint];
-            l = *byte;
+            *byte ^= S[(chunk[i] ^ last) as uint];
+            last = *byte;
         }
     }
 
-    msg.push_all(checksum);
+    checksum
 }
 
 #[inline]
-fn md2_digest(msg: &mut Vec<u8>) -> [u8, ..48] {
-    let mut md = [0u8, ..48];
+fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
+    // Two 128 bit blocks in, one 128 bit block out.
+    assert!(state.len() == 16 && msg.len() == 16);
 
-    for chunk in msg.as_slice().chunks(16) {
-        for (i, byte) in chunk.iter().enumerate() {
-            md[16 + i] = *byte;
-            md[32 + i] = byte ^ md[i];
-        }
+    let mut x = [0u8, ..48];
+    let mut result = [0u8, ..16];
 
-        let mut t = 0u8;
-        for i in range(0, 18) {
-            for byte in md.iter_mut() {
-                *byte ^= S[t as uint];
-                t = *byte;
-            }
+    // Copy over the previous state.
+    md2_memcpy(x.slice_mut(0, 16), state);
 
-            t += i;
-        }
+    // Copy over the message block.
+    md2_memcpy(x.slice_mut(16, 32), msg);
+
+    // XOR the previous state and the message block.
+    for (i, byte) in msg.iter().enumerate() {
+        x[32 + i] = byte ^ x[i];
     }
 
-    md
+    // Encrypt block (18 rounds).
+    let mut t = 0u8;
+    for i in range(0, 18) {
+        for byte in x.iter_mut() {
+            *byte ^= S[t as uint];
+            t = *byte;
+        }
+        t += i;
+    }
+
+    // Copy the new state.
+    md2_memcpy(&mut result, x.slice(0, 16));
+    result
 }
 
-pub fn md2(msg: &[u8], out: &mut [u8]) {
-    assert!(out.len() == 16);
-    let mut msg = msg.to_vec();
+pub fn md2(msg: &[u8]) -> [u8, ..16] {
+    // Pad the message to be a multiple of 16 bytes long.
+    let msg = md2_pad(msg);
+    assert!(msg.len() % 16 == 0);
 
-    md2_pad(&mut msg);
-    md2_checksum(&mut msg);
+    // Compress all message blocks.
+    let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(s, m));
 
-    let md = md2_digest(&mut msg);
-    for (i, byte) in out.iter_mut().enumerate() {
-        *byte = md[i];
-    }
+    // Compute the checksum.
+    let checksum = md2_checksum(msg.as_slice());
+
+    // Compress checksum and return.
+    md2_compress(state, checksum)
 }
 
 #[cfg(test)]
@@ -88,14 +109,8 @@ mod test {
         buf.iter().fold(String::new(), |a, &b| format!("{}{:02x}", a, b))
     }
 
-    fn digest(buf: &[u8]) -> [u8, ..16] {
-        let mut digest = [0u8, ..16];
-        md2(buf, &mut digest);
-        digest
-    }
-
     fn cmp(d: &str, s: &str) {
-        assert_eq!(d.to_string(), hex(digest(s.as_bytes())));
+        assert_eq!(d.to_string(), hex(md2(s.as_bytes())));
     }
 
     #[test]
