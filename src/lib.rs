@@ -2,6 +2,8 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this file,
 * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::slice::bytes::copy_memory;
+
 static S: [u8, ..256] = [
     0x29, 0x2E, 0x43, 0xC9, 0xA2, 0xD8, 0x7C, 0x01, 0x3D, 0x36, 0x54, 0xA1, 0xEC, 0xF0, 0x06, 0x13,
     0x62, 0xA7, 0x05, 0xF3, 0xC0, 0xC7, 0x73, 0x8C, 0x98, 0x93, 0x2B, 0xD9, 0xBC, 0x4C, 0x82, 0xCA,
@@ -20,14 +22,6 @@ static S: [u8, ..256] = [
     0xF2, 0xEF, 0xB7, 0x0E, 0x66, 0x58, 0xD0, 0xE4, 0xA6, 0x77, 0x72, 0xF8, 0xEB, 0x75, 0x4B, 0x0A,
     0x31, 0x44, 0x50, 0xB4, 0x8F, 0xED, 0x1F, 0x1A, 0xDB, 0x99, 0x8D, 0x33, 0x9F, 0x11, 0x83, 0x14
 ];
-
-#[inline]
-fn md2_memcpy(dst: &mut [u8], src: &[u8]) {
-    assert!(dst.len() == src.len());
-
-    // Slow but safe memcpy() implementation.
-    for (i, byte) in dst.iter_mut().enumerate() { *byte = src[i] }
-}
 
 #[inline]
 fn md2_pad(msg: &[u8]) -> Vec<u8> {
@@ -61,10 +55,10 @@ fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
     let mut result = [0u8, ..16];
 
     // Copy over the previous state.
-    md2_memcpy(x.slice_mut(0, 16), state);
+    copy_memory(x.slice_mut(0, 16), state);
 
     // Copy over the message block.
-    md2_memcpy(x.slice_mut(16, 32), msg);
+    copy_memory(x.slice_mut(16, 32), msg);
 
     // XOR the previous state and the message block.
     for (i, byte) in msg.iter().enumerate() {
@@ -82,7 +76,7 @@ fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
     }
 
     // Copy the new state.
-    md2_memcpy(&mut result, x.slice(0, 16));
+    copy_memory(&mut result, x.slice(0, 16));
     result
 }
 
