@@ -68,7 +68,7 @@ fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
 
     // XOR the previous state and the message block.
     for (i, byte) in msg.iter().enumerate() {
-        x[32 + i] = byte ^ x[i];
+        x[32 + i] = *byte ^ x[i];
     }
 
     // Encrypt block (18 rounds).
@@ -92,13 +92,13 @@ pub fn md2(msg: &[u8]) -> [u8, ..16] {
     assert!(msg.len() % 16 == 0);
 
     // Compress all message blocks.
-    let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(s, m));
+    let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(&s, m));
 
     // Compute the checksum.
     let checksum = md2_checksum(msg.as_slice());
 
     // Compress checksum and return.
-    md2_compress(state, checksum)
+    md2_compress(&state, &checksum)
 }
 
 #[cfg(test)]
@@ -110,7 +110,7 @@ mod test {
     }
 
     fn cmp(d: &str, s: &str) {
-        assert_eq!(d.to_string(), hex(md2(s.as_bytes())));
+        assert_eq!(d.to_string(), hex(&md2(s.as_bytes())));
     }
 
     #[test]
