@@ -4,7 +4,7 @@
 
 use std::slice::bytes::copy_memory;
 
-pub static S: [u8, ..256] = [
+pub static SBOX: [u8, ..256] = [
     0x29, 0x2E, 0x43, 0xC9, 0xA2, 0xD8, 0x7C, 0x01, 0x3D, 0x36, 0x54, 0xA1, 0xEC, 0xF0, 0x06, 0x13,
     0x62, 0xA7, 0x05, 0xF3, 0xC0, 0xC7, 0x73, 0x8C, 0x98, 0x93, 0x2B, 0xD9, 0xBC, 0x4C, 0x82, 0xCA,
     0x1E, 0x9B, 0x57, 0x3C, 0xFD, 0xD4, 0xE0, 0x16, 0x67, 0x42, 0x6F, 0x18, 0x8A, 0x17, 0xE5, 0x12,
@@ -50,13 +50,16 @@ pub fn md2_pad(msg: &[u8]) -> Vec<u8> {
 }
 
 pub fn md2_checksum(msg: &[u8]) -> [u8, ..16] {
+    // Message must be padded.
+    assert!(msg.len() % 16 == 0);
+
     let mut checksum = [0u8, ..16];
     let mut last = 0u8;
 
     for chunk in msg.chunks(16) {
-        for (i, byte) in checksum.iter_mut().enumerate() {
-            *byte ^= S[(chunk[i] ^ last) as uint];
-            last = *byte;
+        for (mbyte, cbyte) in chunk.iter().zip(checksum.iter_mut()) {
+            *cbyte ^= SBOX[(*mbyte ^ last) as uint];
+            last = *cbyte;
         }
     }
 
@@ -64,7 +67,7 @@ pub fn md2_checksum(msg: &[u8]) -> [u8, ..16] {
 }
 
 pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
-    // Two 128 bit blocks in, one 128 bit block out.
+    // Two 128 bit blocks in.
     assert!(state.len() == 16 && msg.len() == 16);
 
     let mut x = [0u8, ..48];
@@ -85,7 +88,7 @@ pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
     let mut t = 0u8;
     for i in range(0, 18) {
         for byte in x.iter_mut() {
-            *byte ^= S[t as uint];
+            *byte ^= SBOX[t as uint];
             t = *byte;
         }
         t += i;
@@ -99,7 +102,6 @@ pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
 pub fn md2(msg: &[u8]) -> [u8, ..16] {
     // Pad the message to be a multiple of 16 bytes long.
     let msg = md2_pad(msg);
-    assert!(msg.len() % 16 == 0);
 
     // Compress all message blocks.
     let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(&s, m));
