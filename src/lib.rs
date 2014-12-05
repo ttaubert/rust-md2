@@ -2,6 +2,8 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this file,
 * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#![feature(slicing_syntax)]
+
 use std::slice::bytes::copy_memory;
 
 pub static SBOX: [u8, ..256] = [
@@ -74,10 +76,10 @@ pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   let mut result = [0u8, ..16];
 
   // Copy over the previous state.
-  copy_memory(x.slice_mut(0, 16), state);
+  copy_memory(x[mut ..16], state);
 
   // Copy over the message block.
-  copy_memory(x.slice_mut(16, 32), msg);
+  copy_memory(x[mut 16..32], msg);
 
   // XOR the previous state and the message block.
   for (i, byte) in msg.iter().enumerate() {
@@ -95,7 +97,7 @@ pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   }
 
   // Copy the new state.
-  copy_memory(&mut result, x.slice(0, 16));
+  copy_memory(&mut result, x[..16]);
   result
 }
 
@@ -107,7 +109,7 @@ pub fn md2(msg: &[u8]) -> [u8, ..16] {
   let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(&s, m));
 
   // Compute the checksum.
-  let checksum = md2_checksum(msg.as_slice());
+  let checksum = md2_checksum(msg[]);
 
   // Compress checksum and return.
   md2_compress(&state, &checksum)
