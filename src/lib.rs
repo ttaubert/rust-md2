@@ -72,13 +72,9 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   // Two 128 bit blocks in.
   assert!(state.len() == 16 && msg.len() == 16);
 
+  // Copy over the current state and the message block.
   let mut x = [0u8, ..48];
-  let mut result = [0u8, ..16];
-
-  // Copy over the previous state.
   copy_memory(x[mut ..16], state);
-
-  // Copy over the message block.
   copy_memory(x[mut 16..32], msg);
 
   // XOR the previous state and the message block.
@@ -96,7 +92,8 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
     t += i;
   }
 
-  // Copy the new state.
+  // Extract the result.
+  let mut result = [0u8, ..16];
   copy_memory(&mut result, x[..16]);
   result
 }
@@ -108,11 +105,8 @@ pub fn digest(msg: &[u8]) -> [u8, ..16] {
   // Compress all message blocks.
   let state = msg.chunks(16).fold([0u8, ..16], |s, m| compress(&s, m));
 
-  // Compute the checksum.
-  let checksum = checksum(msg[]);
-
-  // Compress checksum and return.
-  compress(&state, &checksum)
+  // Compute the checksum and merge it into the state.
+  compress(&state, &checksum(msg[]))
 }
 
 #[cfg(test)]
