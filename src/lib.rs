@@ -119,22 +119,20 @@ pub fn md2(msg: &[u8]) -> [u8, ..16] {
 mod test {
   use md2;
 
-  fn hex(buf: &[u8]) -> String {
-    buf.iter().fold(String::new(), |a, &b| format!("{}{:02x}", a, b))
-  }
-
-  fn cmp(d: &str, s: &str) {
-    assert_eq!(d.to_string(), hex(&md2(s.as_bytes())));
+  fn check(exp: &str, msg: &str) {
+    let digest = md2(msg.as_bytes());
+    let hex = digest.iter().fold(String::new(), |a, &b| format!("{}{:02x}", a, b));
+    assert_eq!(exp.to_string(), hex);
   }
 
   #[test]
-  fn test_md2() {
-    cmp("8350e5a3e24c153df2275c9f80692773", "");
-    cmp("32ec01ec4a6dac72c0ab96fb34c0b5d1", "a");
-    cmp("da853b0d3f88d99b30283a69e6ded6bb", "abc");
-    cmp("ab4f496bfb2a530b219ff33031fe06b0", "message digest");
-    cmp("4e8ddff3650292ab5a4108c3aa47940b", "abcdefghijklmnopqrstuvwxyz");
-    cmp("da33def2a42df13975352846c30338cd", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-    cmp("d5976f79d83d3a0dc9806c3c66f3efd8", "12345678901234567890123456789012345678901234567890123456789012345678901234567890");
+  fn test() {
+    check("8350e5a3e24c153df2275c9f80692773", "");
+    check("32ec01ec4a6dac72c0ab96fb34c0b5d1", "a");
+    check("da853b0d3f88d99b30283a69e6ded6bb", "abc");
+    check("ab4f496bfb2a530b219ff33031fe06b0", "message digest");
+    check("4e8ddff3650292ab5a4108c3aa47940b", "abcdefghijklmnopqrstuvwxyz");
+    check("da33def2a42df13975352846c30338cd", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+    check("d5976f79d83d3a0dc9806c3c66f3efd8", "12345678901234567890123456789012345678901234567890123456789012345678901234567890");
   }
 }
