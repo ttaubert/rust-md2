@@ -100,13 +100,16 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
 
 pub fn digest(msg: &[u8]) -> [u8, ..16] {
   // Pad the message to be a multiple of 16 bytes long.
-  let msg = pad(msg);
+  let mut msg = pad(msg);
+
+  // Compute the message's checksum.
+  let csum = checksum(msg[]);
+
+  // Append the checksum to the message.
+  msg.push_all(&csum);
 
   // Compress all message blocks.
-  let state = msg.chunks(16).fold([0u8, ..16], |s, m| compress(&s, m));
-
-  // Compute the checksum and merge it into the state.
-  compress(&state, &checksum(msg[]))
+  msg.chunks(16).fold([0u8, ..16], |state, chunk| compress(&state, chunk))
 }
 
 #[cfg(test)]
