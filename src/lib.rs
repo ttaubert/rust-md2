@@ -44,14 +44,14 @@ pub static SBOXI: [u8, ..256] = [
   0x0D, 0x7F, 0xE0, 0x13, 0xBB, 0x3A, 0x97, 0x5D, 0xEB, 0xAA, 0xC7, 0x39, 0x79, 0x24, 0xDB, 0x60
 ];
 
-pub fn md2_pad(msg: &[u8]) -> Vec<u8> {
+fn pad(msg: &[u8]) -> Vec<u8> {
   let mut msg = msg.to_vec();
   let pad = 16 - msg.len() % 16;
   msg.grow_fn(pad, |_| pad as u8);
   msg
 }
 
-pub fn md2_checksum(msg: &[u8]) -> [u8, ..16] {
+fn checksum(msg: &[u8]) -> [u8, ..16] {
   // Message must be padded.
   assert!(msg.len() % 16 == 0);
 
@@ -68,7 +68,7 @@ pub fn md2_checksum(msg: &[u8]) -> [u8, ..16] {
   checksum
 }
 
-pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
+pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   // Two 128 bit blocks in.
   assert!(state.len() == 16 && msg.len() == 16);
 
@@ -101,27 +101,27 @@ pub fn md2_compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   result
 }
 
-pub fn md2(msg: &[u8]) -> [u8, ..16] {
+pub fn digest(msg: &[u8]) -> [u8, ..16] {
   // Pad the message to be a multiple of 16 bytes long.
-  let msg = md2_pad(msg);
+  let msg = pad(msg);
 
   // Compress all message blocks.
-  let state = msg.chunks(16).fold([0u8, ..16], |s, m| md2_compress(&s, m));
+  let state = msg.chunks(16).fold([0u8, ..16], |s, m| compress(&s, m));
 
   // Compute the checksum.
-  let checksum = md2_checksum(msg[]);
+  let checksum = checksum(msg[]);
 
   // Compress checksum and return.
-  md2_compress(&state, &checksum)
+  compress(&state, &checksum)
 }
 
 #[cfg(test)]
 mod test {
-  use md2;
+  use digest;
 
   fn check(exp: &str, msg: &str) {
-    let digest = md2(msg.as_bytes());
-    let hex = digest.iter().fold(String::new(), |a, &b| format!("{}{:02x}", a, b));
+    let hash = digest(msg.as_bytes());
+    let hex = hash.iter().fold(String::new(), |a, &b| format!("{}{:02x}", a, b));
     assert_eq!(exp.to_string(), hex);
   }
 
