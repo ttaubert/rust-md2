@@ -4,6 +4,7 @@
 
 #![feature(slicing_syntax)]
 
+use std::iter::repeat;
 use std::slice::bytes::copy_memory;
 
 pub static SBOX: [u8; 256] = [
@@ -55,7 +56,7 @@ pub static SBOXI: [u8; 256] = [
 fn pad(msg: &[u8]) -> Vec<u8> {
   let mut msg = msg.to_vec();
   let pad = 16 - msg.len() % 16;
-  msg.extend(range(0, pad).map(|_| pad as u8));
+  msg.extend(repeat(pad as u8).take(pad));
   msg
 }
 
