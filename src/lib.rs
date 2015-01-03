@@ -6,7 +6,7 @@
 
 use std::slice::bytes::copy_memory;
 
-pub static SBOX: [u8, ..256] = [
+pub static SBOX: [u8; 256] = [
   0x29, 0x2e, 0x43, 0xc9, 0xa2, 0xd8, 0x7c, 0x01, 0x3d, 0x36, 0x54, 0xa1, 0xec,
   0xf0, 0x06, 0x13, 0x62, 0xa7, 0x05, 0xf3, 0xc0, 0xc7, 0x73, 0x8c, 0x98, 0x93,
   0x2b, 0xd9, 0xbc, 0x4c, 0x82, 0xca, 0x1e, 0x9b, 0x57, 0x3c, 0xfd, 0xd4, 0xe0,
@@ -29,7 +29,7 @@ pub static SBOX: [u8, ..256] = [
   0x1a, 0xdb, 0x99, 0x8d, 0x33, 0x9f, 0x11, 0x83, 0x14
 ];
 
-pub static SBOXI: [u8, ..256] = [
+pub static SBOXI: [u8; 256] = [
   0xdd, 0x07, 0x8f, 0x5f, 0x7e, 0x12, 0x0e, 0x46, 0xcb, 0xb7, 0xef, 0x4c, 0xcc,
   0xb2, 0xe3, 0x9f, 0x4a, 0xfd, 0x2f, 0x0f, 0xff, 0x44, 0x27, 0x2d, 0x2b, 0x61,
   0xf7, 0x90, 0x98, 0xde, 0x20, 0xf6, 0x87, 0x4f, 0x4d, 0xa3, 0xc8, 0x92, 0xaf,
@@ -55,15 +55,15 @@ pub static SBOXI: [u8, ..256] = [
 fn pad(msg: &[u8]) -> Vec<u8> {
   let mut msg = msg.to_vec();
   let pad = 16 - msg.len() % 16;
-  msg.grow_fn(pad, |_| pad as u8);
+  msg.extend(range(0, pad).map(|_| pad as u8));
   msg
 }
 
-fn checksum(msg: &[u8]) -> [u8, ..16] {
+fn checksum(msg: &[u8]) -> [u8; 16] {
   // Message must be padded.
   assert!(msg.len() % 16 == 0);
 
-  let mut checksum = [0u8, ..16];
+  let mut checksum = [0u8; 16];
   let mut last = 0u8;
 
   for chunk in msg.chunks(16) {
@@ -76,14 +76,14 @@ fn checksum(msg: &[u8]) -> [u8, ..16] {
   checksum
 }
 
-pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
+pub fn compress(state: &[u8], msg: &[u8]) -> [u8; 16] {
   // Two 128 bit blocks in.
   assert!(state.len() == 16 && msg.len() == 16);
 
   // Copy over the current state and the message block.
-  let mut x = [0u8, ..48];
-  copy_memory(x[mut ..16], state);
-  copy_memory(x[mut 16..32], msg);
+  let mut x = [0u8; 48];
+  copy_memory(x.slice_to_mut(16), state);
+  copy_memory(x.slice_mut(16, 32), msg);
 
   // XOR the previous state and the message block.
   for (i, byte) in msg.iter().enumerate() {
@@ -101,12 +101,12 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8, ..16] {
   }
 
   // Extract the result.
-  let mut result = [0u8, ..16];
+  let mut result = [0u8; 16];
   copy_memory(&mut result, x[..16]);
   result
 }
 
-pub fn digest(msg: &[u8]) -> [u8, ..16] {
+pub fn digest(msg: &[u8]) -> [u8; 16] {
   // Pad the message to be a multiple of 16 bytes long.
   let mut msg = pad(msg);
 
@@ -117,7 +117,7 @@ pub fn digest(msg: &[u8]) -> [u8, ..16] {
   msg.push_all(&csum);
 
   // Compress all message blocks.
-  msg.chunks(16).fold([0u8, ..16], |state, chunk| compress(&state, chunk))
+  msg.chunks(16).fold([0u8; 16], |state, chunk| compress(&state, chunk))
 }
 
 #[cfg(test)]
