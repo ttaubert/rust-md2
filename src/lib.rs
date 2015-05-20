@@ -2,10 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(slicing_syntax)]
-
 use std::iter::repeat;
-use std::slice::bytes::copy_memory;
 
 pub static SBOX: [u8; 256] = [
   0x29, 0x2e, 0x43, 0xc9, 0xa2, 0xd8, 0x7c, 0x01, 0x3d, 0x36, 0x54, 0xa1, 0xec,
@@ -69,7 +66,7 @@ fn checksum(msg: &[u8]) -> [u8; 16] {
 
   for chunk in msg.chunks(16) {
     for (mbyte, cbyte) in chunk.iter().zip(checksum.iter_mut()) {
-      *cbyte ^= SBOX[(*mbyte ^ last) as uint];
+      *cbyte ^= SBOX[(*mbyte ^ last) as usize];
       last = *cbyte;
     }
   }
@@ -81,10 +78,13 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8; 16] {
   // Two 128 bit blocks in.
   assert!(state.len() == 16 && msg.len() == 16);
 
-  // Copy over the current state and the message block.
   let mut x = [0u8; 48];
-  copy_memory(x.slice_to_mut(16), state);
-  copy_memory(x.slice_mut(16, 32), msg);
+
+  // Copy over the current state and the message block.
+  for i in 0..16 {
+    x[i] = state[i];
+    x[i + 16] = msg[i]
+  }
 
   // XOR the previous state and the message block.
   for (i, byte) in msg.iter().enumerate() {
@@ -93,17 +93,19 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8; 16] {
 
   // Encrypt block (18 rounds).
   let mut t = 0u8;
-  for i in range(0, 18) {
+  for i in 0..18 {
     for byte in x.iter_mut() {
-      *byte ^= SBOX[t as uint];
+      *byte ^= SBOX[t as usize];
       t = *byte;
     }
-    t += i;
+    t = t.wrapping_add(i);
   }
 
   // Extract the result.
   let mut result = [0u8; 16];
-  copy_memory(&mut result, x[..16]);
+  for i in 0..16 {
+    result[i] = x[i];
+  }
   result
 }
 
@@ -112,10 +114,10 @@ pub fn digest(msg: &[u8]) -> [u8; 16] {
   let mut msg = pad(msg);
 
   // Compute the message's checksum.
-  let csum = checksum(msg[]);
+  let csum = checksum(&msg);
 
   // Append the checksum to the message.
-  msg.push_all(&csum);
+  msg.extend(csum.to_vec());
 
   // Compress all message blocks.
   msg.chunks(16).fold([0u8; 16], |state, chunk| compress(&state, chunk))
