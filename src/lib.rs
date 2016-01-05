@@ -94,9 +94,9 @@ pub fn compress(state: &[u8], msg: &[u8]) -> [u8; 16] {
   // Encrypt block (18 rounds).
   let mut t = 0u8;
   for i in 0..18 {
-    for byte in x.iter_mut() {
-      *byte ^= SBOX[t as usize];
-      t = *byte;
+    for j in 0..x.len() {
+      x[j] ^= SBOX[t as usize];
+      t = x[j];
     }
     t = t.wrapping_add(i);
   }
